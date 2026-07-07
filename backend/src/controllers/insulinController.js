@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
 import { patientId } from '../utils/patientContext.js';
+import { notifyInsulinLogged } from '../services/careNotifyService.js';
 
 const INSULIN_LABELS = { apidra: 'Apidra', lantus: 'Lantus' };
 const MEAL_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
@@ -29,6 +30,7 @@ export async function create(req, res, next) {
       [patientId(req), insulinType, meal, units, recordedAt, notes || null, injectionSite || null]
     );
     const [rows] = await pool.query('SELECT * FROM insulin_logs WHERE id = ?', [result.insertId]);
+    notifyInsulinLogged(patientId(req), rows[0]).catch(() => {});
     res.status(201).json({ log: mapLog(rows[0]) });
   } catch (e) {
     next(e);

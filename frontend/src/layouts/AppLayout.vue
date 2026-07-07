@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import AppSidebar from '../components/layout/AppSidebar.vue';
 import PatientSwitcher from '../components/layout/PatientSwitcher.vue';
 import AppLogo from '../components/common/AppLogo.vue';
+import NotificationPrompt from '../components/common/NotificationPrompt.vue';
 import { useNotifications } from '../composables/useNotifications';
 import { useAuthStore } from '../stores/auth';
 
@@ -50,5 +51,6 @@ const isSidebarOpen = ref(false);
         <RouterView />
       </div>
     </main>
+    <NotificationPrompt />
   </div>
 </template>

@@ -165,10 +165,16 @@ onMounted(load);
         </div>
         <div class="card p-5 md:p-6 flex flex-col justify-between">
           <div class="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
-            <i class="ph-duotone ph-clock text-xl"></i>
-            <p class="text-sm font-medium">Time in range</p>
+            <i class="ph-duotone ph-chart-donut text-xl"></i>
+            <p class="text-sm font-medium">Reading levels</p>
           </div>
-          <p class="text-3xl font-bold mt-1 text-slate-800 dark:text-slate-100">{{ summary.timeInRange?.percent ?? 0 }}%</p>
+          <div v-if="summary.breakdown?.total" class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-base font-bold">
+            <span class="text-emerald-600 dark:text-emerald-400">{{ summary.breakdown.normal }} normal</span>
+            <span class="text-red-500">{{ summary.breakdown.low }} low</span>
+            <span class="text-orange-500">{{ summary.breakdown.high }} high</span>
+          </div>
+          <p v-else class="text-3xl font-bold mt-1 text-slate-800 dark:text-slate-100">—</p>
+          <p class="text-xs text-slate-500 mt-1">{{ summary.breakdown?.total ?? 0 }} readings</p>
         </div>
       </div>
 

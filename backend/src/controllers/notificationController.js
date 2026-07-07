@@ -2,10 +2,16 @@ import pool from '../config/db.js';
 
 export async function list(req, res, next) {
   try {
-    const [rows] = await pool.query(
-      `SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
-      [req.user.id]
-    );
+    const { since } = req.query;
+    let sql = `SELECT * FROM notifications WHERE user_id = ?`;
+    const params = [req.user.id];
+    if (since) {
+      sql += ` AND created_at > ?`;
+      params.push(since);
+    }
+    sql += ` ORDER BY created_at DESC LIMIT 50`;
+
+    const [rows] = await pool.query(sql, params);
     res.json({
       notifications: rows.map((r) => ({
         id: r.id,

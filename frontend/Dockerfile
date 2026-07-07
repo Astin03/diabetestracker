@@ -6,7 +6,7 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=https://dt-server.wonderprotect.net/api
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build

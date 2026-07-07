@@ -86,10 +86,16 @@ async function resetTodayMedications() {
         </div>
         <div class="card p-5 md:p-6 flex flex-col justify-between">
           <div class="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
-            <i class="ph-duotone ph-clock text-xl"></i>
-            <p class="text-sm font-medium">Time in range</p>
+            <i class="ph-duotone ph-chart-donut text-xl"></i>
+            <p class="text-sm font-medium">Reading levels (7d)</p>
           </div>
-          <p class="text-4xl font-bold text-slate-800 dark:text-slate-100 mt-2">{{ data.week.timeInRange.percent }}%</p>
+          <div v-if="data.week.breakdown?.total" class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-base font-bold">
+            <span class="text-emerald-600 dark:text-emerald-400">{{ data.week.breakdown.normal }} normal</span>
+            <span class="text-red-500">{{ data.week.breakdown.low }} low</span>
+            <span class="text-orange-500">{{ data.week.breakdown.high }} high</span>
+          </div>
+          <p v-else class="text-4xl font-bold text-slate-800 dark:text-slate-100 mt-2">—</p>
+          <p class="text-xs text-slate-500 mt-2">{{ data.week.breakdown?.total ?? 0 }} readings this week</p>
         </div>
         <div class="card p-5 md:p-6 flex flex-col justify-between">
           <div class="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">

@@ -1,5 +1,5 @@
 import pool from '../config/db.js';
-import { estimateA1C, glucoseStats, timeInRange } from '../utils/a1c.js';
+import { estimateA1C, glucoseStats, timeInRange, categoryBreakdown } from '../utils/a1c.js';
 import { patientId } from '../utils/patientContext.js';
 import {
   ensureChecklistsForRange,
@@ -52,6 +52,7 @@ export async function getDashboard(req, res, next) {
     const todayStats = glucoseStats(todayLogs);
     const weekStats = glucoseStats(weekLogs);
     const tir = timeInRange(weekLogs, targetLow, targetHigh);
+    const weekBreakdown = categoryBreakdown(weekLogs);
 
     const mapLog = (r) => ({
       id: r.id,
@@ -69,6 +70,7 @@ export async function getDashboard(req, res, next) {
       week: {
         stats: { ...weekStats, estimatedA1C: estimateA1C(weekStats.avg) },
         timeInRange: tir,
+        breakdown: weekBreakdown,
         logs: weekLogs.map(mapLog),
       },
       recentReadings: recentLogs.map(mapLog),

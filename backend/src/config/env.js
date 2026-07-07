@@ -16,4 +16,8 @@ export const env = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
 };

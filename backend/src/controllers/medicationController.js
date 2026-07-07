@@ -7,6 +7,7 @@ import {
 } from '../services/checklistService.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
 import { patientId } from '../utils/patientContext.js';
+import { notifyMedicationTaken } from '../services/careNotifyService.js';
 
 function mapMed(row) {
   return {
@@ -185,6 +186,15 @@ export async function resetTodayChecklist(req, res, next) {
 export async function markTaken(req, res, next) {
   try {
     const { id } = req.params;
+    const [items] = await pool.query(
+      `SELECT c.*, m.name FROM medication_checklists c
+       JOIN medications m ON m.id = c.medication_id
+       WHERE c.id = ? AND c.user_id = ?`,
+      [id, patientId(req)]
+    );
+    if (!items.length) return res.status(404).json({ error: 'Checklist item not found' });
+
+    const item = items[0];
     const takenAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const [result] = await pool.query(
       `UPDATE medication_checklists SET status = 'taken', taken_at = ?
@@ -192,6 +202,12 @@ export async function markTaken(req, res, next) {
       [takenAt, id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Checklist item not found' });
+
+    notifyMedicationTaken(patientId(req), {
+      medicationName: item.name,
+      scheduledTime: item.scheduled_time,
+    }).catch(() => {});
+
     res.json({ success: true, status: 'taken', takenAt });
   } catch (e) {
     next(e);

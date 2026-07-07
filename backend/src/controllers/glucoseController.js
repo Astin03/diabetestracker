@@ -1,8 +1,9 @@
 import pool from '../config/db.js';
 import { categorizeGlucose } from '../utils/glucose.js';
-import { estimateA1C, glucoseStats, timeInRange } from '../utils/a1c.js';
+import { estimateA1C, glucoseStats, timeInRange, categoryBreakdown } from '../utils/a1c.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
 import { patientId } from '../utils/patientContext.js';
+import { notifyGlucoseLogged } from '../services/careNotifyService.js';
 
 function mapLog(row) {
   return {
@@ -58,7 +59,9 @@ export async function create(req, res, next) {
     await updateStreak(patientId(req), recordedAt);
 
     const [rows] = await pool.query('SELECT * FROM glucose_logs WHERE id = ?', [result.insertId]);
-    res.status(201).json({ log: mapLog(rows[0]) });
+    const log = mapLog(rows[0]);
+    notifyGlucoseLogged(patientId(req), rows[0]).catch(() => {});
+    res.status(201).json({ log });
   } catch (e) {
     next(e);
   }
@@ -186,6 +189,7 @@ export async function summary(req, res, next) {
     const logs = rows.map(mapLog);
     const stats = glucoseStats(logs);
     const tir = timeInRange(logs, targetLow, targetHigh);
+    const breakdown = categoryBreakdown(logs);
 
     const { page: timelinePage, limit: timelineLimit, offset } = parsePagination(
       { page: req.query.timelinePage, limit: req.query.timelineLimit },
@@ -202,6 +206,7 @@ export async function summary(req, res, next) {
       timelinePagination: paginationMeta(timelinePage, timelineLimit, timelineDesc.length),
       stats: { ...stats, estimatedA1C: estimateA1C(stats.avg) },
       timeInRange: tir,
+      breakdown,
       targetLow,
       targetHigh,
     });
