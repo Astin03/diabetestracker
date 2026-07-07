@@ -1,0 +1,11 @@
+[phases.setup]
+nixpkgsArchive = "23f9169c4ccce521379e602cc82ed873a1f1b52b"
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run preview -- --host 0.0.0.0 --port 3000"
