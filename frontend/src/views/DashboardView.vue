@@ -4,9 +4,11 @@ import api from '../services/api';
 import GlucoseChart from '../components/glucose/GlucoseChart.vue';
 import { estimateA1C } from '../utils/glucose';
 import { useAlert } from '../composables/useAlert';
+import { useAuthStore } from '../stores/auth';
 import { format } from 'date-fns';
 
 const alert = useAlert();
+const auth = useAuthStore();
 const data = ref(null);
 const loading = ref(true);
 const resettingMeds = ref(false);
@@ -59,7 +61,7 @@ async function resetTodayMedications() {
           <h1 class="text-3xl md:text-4xl font-bold tracking-tight">Dashboard</h1>
         </div>
       </div>
-      <RouterLink to="/glucose" class="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 whitespace-nowrap"><i class="ph-bold ph-plus text-lg"></i> Log reading</RouterLink>
+      <RouterLink v-if="auth.canWrite" to="/glucose" class="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 whitespace-nowrap"><i class="ph-bold ph-plus text-lg"></i> Log reading</RouterLink>
     </header>
 
     <div v-if="loading" class="grid md:grid-cols-4 gap-4">
@@ -121,6 +123,7 @@ async function resetTodayMedications() {
               <h2 class="text-xl font-bold">Today's medications</h2>
             </div>
             <button
+              v-if="auth.canWrite"
               type="button"
               class="btn-secondary text-sm py-1.5 px-3 flex items-center gap-1.5"
               :disabled="resettingMeds"
@@ -141,7 +144,7 @@ async function resetTodayMedications() {
                 <p class="text-xs text-slate-500">{{ item.scheduledTime }}</p>
               </div>
               <button
-                v-if="item.status === 'pending'"
+                v-if="item.status === 'pending' && auth.canWrite"
                 type="button"
                 class="btn-primary text-sm py-1.5 px-3"
                 @click="markTaken(item.id)"

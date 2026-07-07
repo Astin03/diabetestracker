@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
+import { patientId } from '../utils/patientContext.js';
 
 function mapAppt(row) {
   return {
@@ -19,7 +20,7 @@ export async function create(req, res, next) {
     const [result] = await pool.query(
       `INSERT INTO appointments (user_id, title, type, appointment_at, location, notes)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.id, title, type || 'doctor', appointmentAt, location || null, notes || null]
+      [patientId(req), title, type || 'doctor', appointmentAt, location || null, notes || null]
     );
     const [rows] = await pool.query('SELECT * FROM appointments WHERE id = ?', [result.insertId]);
     res.status(201).json({ appointment: mapAppt(rows[0]) });
@@ -34,7 +35,7 @@ export async function list(req, res, next) {
     const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 10 });
 
     let where = 'WHERE user_id = ?';
-    const params = [req.user.id];
+    const params = [patientId(req)];
     if (from) { where += ' AND appointment_at >= ?'; params.push(from); }
     if (to) { where += ' AND appointment_at <= ?'; params.push(to.includes(' ') ? to : `${to} 23:59:59`); }
     if (status === 'upcoming') where += ' AND appointment_at >= NOW()';
@@ -68,7 +69,7 @@ export async function update(req, res, next) {
     const [result] = await pool.query(
       `UPDATE appointments SET title=?, type=?, appointment_at=?, location=?, notes=?
        WHERE id=? AND user_id=?`,
-      [title, type, appointmentAt, location, notes, req.params.id, req.user.id]
+      [title, type, appointmentAt, location, notes, req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Appointment not found' });
     const [rows] = await pool.query('SELECT * FROM appointments WHERE id = ?', [req.params.id]);
@@ -82,7 +83,7 @@ export async function remove(req, res, next) {
   try {
     const [result] = await pool.query(
       'DELETE FROM appointments WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
+      [req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Appointment not found' });
     res.json({ success: true });

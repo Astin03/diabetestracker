@@ -2,10 +2,12 @@
 import { ref, onMounted } from 'vue';
 import api from '../services/api';
 import { useAlert } from '../composables/useAlert';
+import { useAuthStore } from '../stores/auth';
 import { format } from 'date-fns';
 import PaginationBar from '../components/common/PaginationBar.vue';
 
 const alert = useAlert();
+const auth = useAuthStore();
 const meds = ref([]);
 const medPage = ref(1);
 const medPagination = ref({ page: 1, limit: 12, total: 0, totalPages: 1 });
@@ -177,6 +179,7 @@ onMounted(load);
         </div>
       </div>
       <button
+        v-if="auth.canWrite"
         type="button"
         class="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
         @click="showForm ? cancelForm() : openAdd()"
@@ -186,7 +189,7 @@ onMounted(load);
       </button>
     </div>
 
-    <form v-if="showForm" class="card p-6 space-y-4" @submit.prevent="saveMed">
+    <form v-if="showForm && auth.canWrite" class="card p-6 space-y-4" @submit.prevent="saveMed">
       <h2 class="font-semibold">{{ editingId ? 'Edit medication' : 'Add medication' }}</h2>
       <input v-model="form.name" required placeholder="Medication name" class="input-field" />
       <input v-model="form.dosage" placeholder="Dosage" class="input-field" />
@@ -229,6 +232,7 @@ onMounted(load);
           <h2 class="text-xl font-bold">Today's checklist</h2>
         </div>
         <button
+          v-if="auth.canWrite"
           type="button"
           class="btn-secondary text-sm flex items-center gap-2"
           :disabled="resettingChecklist"
@@ -253,7 +257,7 @@ onMounted(load);
             <p class="text-sm text-slate-500">{{ item.dosage }} · {{ item.scheduledTime }}</p>
           </div>
           <button
-            v-if="item.status === 'pending'"
+            v-if="item.status === 'pending' && auth.canWrite"
             type="button"
             class="btn-primary text-sm py-2 px-4 shadow-none"
             @click="markTaken(item.id)"
@@ -285,6 +289,7 @@ onMounted(load);
               <div class="flex items-center gap-1">
                 <span class="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">{{ m.frequencyType.replace(/_/g, ' ') }}</span>
                 <button
+                  v-if="auth.canWrite"
                   type="button"
                   class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                   title="Edit"
@@ -293,6 +298,7 @@ onMounted(load);
                   <i class="ph ph-pencil-simple text-lg" />
                 </button>
                 <button
+                  v-if="auth.canWrite"
                   type="button"
                   class="p-2 rounded-lg text-red-500 hover:bg-red-500/10 disabled:opacity-50"
                   :disabled="deletingId === m.id"

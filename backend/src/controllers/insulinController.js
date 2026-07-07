@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
+import { patientId } from '../utils/patientContext.js';
 
 const INSULIN_LABELS = { apidra: 'Apidra', lantus: 'Lantus' };
 const MEAL_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
@@ -25,7 +26,7 @@ export async function create(req, res, next) {
     const [result] = await pool.query(
       `INSERT INTO insulin_logs (user_id, insulin_type, meal, units, recorded_at, notes, injection_site)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, insulinType, meal, units, recordedAt, notes || null, injectionSite || null]
+      [patientId(req), insulinType, meal, units, recordedAt, notes || null, injectionSite || null]
     );
     const [rows] = await pool.query('SELECT * FROM insulin_logs WHERE id = ?', [result.insertId]);
     res.status(201).json({ log: mapLog(rows[0]) });
@@ -40,7 +41,7 @@ export async function list(req, res, next) {
     const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 10 });
 
     let where = 'WHERE user_id = ?';
-    const params = [req.user.id];
+    const params = [patientId(req)];
 
     if (from) { where += ' AND recorded_at >= ?'; params.push(from); }
     if (to) { where += ' AND recorded_at <= ?'; params.push(to + ' 23:59:59'); }
@@ -77,7 +78,7 @@ export async function summary(req, res, next) {
        FROM insulin_logs
        WHERE user_id = ? AND recorded_at >= ? AND recorded_at <= ?
        GROUP BY insulin_type`,
-      [req.user.id, dateFrom, dateTo + ' 23:59:59']
+      [patientId(req), dateFrom, dateTo + ' 23:59:59']
     );
 
     const [byMeal] = await pool.query(
@@ -85,7 +86,7 @@ export async function summary(req, res, next) {
        FROM insulin_logs
        WHERE user_id = ? AND recorded_at >= ? AND recorded_at <= ?
        GROUP BY insulin_type, meal`,
-      [req.user.id, dateFrom, dateTo + ' 23:59:59']
+      [patientId(req), dateFrom, dateTo + ' 23:59:59']
     );
 
     const totals = { apidra: { units: 0, doses: 0 }, lantus: { units: 0, doses: 0 } };
@@ -125,7 +126,7 @@ export async function update(req, res, next) {
     const [result] = await pool.query(
       `UPDATE insulin_logs SET insulin_type=?, meal=?, units=?, recorded_at=?, notes=?, injection_site=?
        WHERE id=? AND user_id=?`,
-      [insulinType, meal, units, recordedAt, notes, injectionSite, req.params.id, req.user.id]
+      [insulinType, meal, units, recordedAt, notes, injectionSite, req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Log not found' });
     const [rows] = await pool.query('SELECT * FROM insulin_logs WHERE id = ?', [req.params.id]);
@@ -139,7 +140,7 @@ export async function remove(req, res, next) {
   try {
     const [result] = await pool.query(
       'DELETE FROM insulin_logs WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
+      [req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Log not found' });
     res.json({ success: true });

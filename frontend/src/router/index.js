@@ -15,6 +15,12 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/choose-data',
+    name: 'choose-data',
+    component: () => import('../views/ChooseDataView.vue'),
+    meta: { requiresAuth: true, skipDataChoice: true },
+  },
+  {
     path: '/',
     component: () => import('../layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
@@ -37,16 +43,32 @@ const router = createRouter({
   routes,
 });
 
+async function ensureAuthLoaded(auth) {
+  if (auth.isAuthenticated && !auth.user) {
+    await auth.fetchProfile();
+    await auth.loadCareData();
+  }
+}
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (to.meta.requiresAuth && !auth.isAuthenticated) return '/login';
-  if (to.meta.guest && auth.isAuthenticated) return '/';
-  if (auth.isAuthenticated && !auth.user) {
+  if (to.meta.guest && auth.isAuthenticated) {
+    await ensureAuthLoaded(auth);
+    return auth.needsDataChoice ? '/choose-data' : '/';
+  }
+  if (to.meta.requiresAuth) {
     try {
-      await auth.fetchProfile();
+      await ensureAuthLoaded(auth);
     } catch {
       auth.logout();
       return '/login';
+    }
+    if (!to.meta.skipDataChoice && auth.needsDataChoice) {
+      return '/choose-data';
+    }
+    if (to.name === 'choose-data' && !auth.isGuardian) {
+      return '/';
     }
   }
 });

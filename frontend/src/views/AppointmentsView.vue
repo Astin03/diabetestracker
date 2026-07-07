@@ -2,10 +2,12 @@
 import { ref, onMounted } from 'vue';
 import api from '../services/api';
 import { useAlert } from '../composables/useAlert';
+import { useAuthStore } from '../stores/auth';
 import { format, parseISO } from 'date-fns';
 import PaginationBar from '../components/common/PaginationBar.vue';
 
 const alert = useAlert();
+const auth = useAuthStore();
 const upcoming = ref([]);
 const past = ref([]);
 const upcomingPagination = ref({ page: 1, limit: 10, total: 0, totalPages: 1 });
@@ -180,12 +182,12 @@ onMounted(load);
         <h1 class="text-2xl font-bold">Appointments</h1>
         <p class="text-sm text-slate-500 mt-1">Doctor visits, lab work, and more</p>
       </div>
-      <button v-if="!showForm" type="button" class="btn-primary flex items-center gap-1" @click="openAdd">
+      <button v-if="!showForm && auth.canWrite" type="button" class="btn-primary flex items-center gap-1" @click="openAdd">
         <i class="ph ph-plus" /> Add appointment
       </button>
     </div>
 
-    <form v-if="showForm" class="card p-6 space-y-4" @submit.prevent="save">
+    <form v-if="showForm && auth.canWrite" class="card p-6 space-y-4" @submit.prevent="save">
       <div class="flex items-center justify-between">
         <h2 class="font-semibold">{{ editingId ? 'Edit appointment' : 'New appointment' }}</h2>
         <button type="button" class="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300" @click="cancelForm">
@@ -275,7 +277,7 @@ onMounted(load);
               </p>
               <p v-if="appt.notes" class="text-sm mt-2 text-slate-600 dark:text-slate-400">{{ appt.notes }}</p>
             </div>
-            <div class="flex gap-1 shrink-0">
+            <div v-if="auth.canWrite" class="flex gap-1 shrink-0">
               <button
                 type="button"
                 class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -327,7 +329,7 @@ onMounted(load);
               <p class="text-sm text-slate-500 mt-1">{{ formatApptDate(appt.appointmentAt) }}</p>
               <p v-if="appt.location" class="text-sm text-slate-500">{{ appt.location }}</p>
             </div>
-            <div class="flex gap-1 shrink-0">
+            <div v-if="auth.canWrite" class="flex gap-1 shrink-0">
               <button type="button" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" @click="openEdit(appt)">
                 <i class="ph ph-pencil-simple text-lg" />
               </button>

@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { estimateA1C, glucoseStats, timeInRange } from '../utils/a1c.js';
+import { patientId } from '../utils/patientContext.js';
 import {
   ensureChecklistsForRange,
   purgeInactiveMedicationChecklists,
@@ -7,7 +8,7 @@ import {
 
 export async function getDashboard(req, res, next) {
   try {
-    const userId = req.user.id;
+    const userId = patientId(req);
     const today = new Date().toISOString().slice(0, 10);
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
@@ -90,7 +91,7 @@ export async function getDashboard(req, res, next) {
 export async function getCalendarDay(req, res, next) {
   try {
     const { date } = req.params;
-    const userId = req.user.id;
+    const userId = patientId(req);
 
     const [logs] = await pool.query(
       `SELECT * FROM glucose_logs WHERE user_id = ? AND DATE(recorded_at) = ? ORDER BY recorded_at`,

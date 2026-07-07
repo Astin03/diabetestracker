@@ -20,14 +20,23 @@ export async function exportCsv() {
 }
 
 export function exportPdf(logs) {
-  const doc = new jsPDF();
-  doc.setFontSize(18);
-  doc.text('Astin Diabetes System - Glucose Report', 14, 20);
-  doc.setFontSize(10);
-  doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 28);
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  doc.setFont('helvetica');
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
+  doc.text('Astin Diabetes System - Glucose Report', 14, 12);
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 17);
+
+  const categoryBorder = {
+    hypoglycemia: [239, 68, 68],
+    hyperglycemia: [249, 115, 22],
+    normal: [34, 197, 94],
+  };
 
   autoTable(doc, {
-    startY: 35,
+    startY: 22,
     head: [['Date', 'Time', 'Value', 'Type', 'Category', 'Notes']],
     body: logs.map((l) => [
       format(new Date(l.recordedAt), 'yyyy-MM-dd'),
@@ -37,6 +46,37 @@ export function exportPdf(logs) {
       l.category,
       l.notes || '',
     ]),
+    styles: {
+      font: 'helvetica',
+      fontSize: 7,
+      cellPadding: 1.5,
+      textColor: [0, 0, 0],
+      lineColor: [210, 210, 210],
+      lineWidth: 0.1,
+    },
+    headStyles: {
+      fillColor: [245, 245, 245],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      fontSize: 7,
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+    },
+    alternateRowStyles: {
+      fillColor: [252, 252, 252],
+    },
+    margin: { left: 14, right: 14 },
+    didParseCell(data) {
+      if (data.section !== 'body') return;
+      const log = logs[data.row.index];
+      if (!log) return;
+      const color = categoryBorder[log.category] || categoryBorder.normal;
+      if (data.column.index === 2 || data.column.index === 4) {
+        data.cell.styles.lineColor = color;
+        data.cell.styles.lineWidth = 0.35;
+      }
+    },
   });
 
   doc.save(`astin-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);

@@ -4,6 +4,7 @@ export const registerValidation = [
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 8 }),
   body('fullName').trim().notEmpty(),
+  body('accountType').optional().isIn(['patient', 'guardian']),
   body('diabetesType').optional().isIn(['type_1', 'type_1_5', 'type_2', 'gestational']),
 ];
 
@@ -40,6 +41,11 @@ export const insulinValidation = [
   body('meal').isIn(['breakfast', 'lunch', 'dinner']),
   body('units').isFloat({ min: 0.5, max: 200 }),
   body('recordedAt').notEmpty(),
+];
+
+export const inviteViewerValidation = [
+  body('email').isEmail().normalizeEmail(),
+  body('displayName').optional().trim(),
 ];
 
 export function validate(req, res, next) {

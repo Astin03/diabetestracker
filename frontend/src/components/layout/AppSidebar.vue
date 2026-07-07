@@ -1,6 +1,7 @@
 <script setup>
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import AppLogo from '../common/AppLogo.vue';
 const route = useRoute();
 const auth = useAuthStore();
 
@@ -52,24 +53,13 @@ function isActive(path) {
     class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 lg:bg-white/50 dark:lg:bg-slate-900/50 lg:backdrop-blur flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 no-print"
     :class="isOpen ? 'translate-x-0' : '-translate-x-full'"
   >
-    <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-astin-500 to-astin-700 flex items-center justify-center shrink-0 shadow-lg shadow-astin-600/30">
-          <svg viewBox="0 0 24 24" fill="none" class="w-6 h-6 text-white" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path>
-            <path d="M9.5 15.5h5"></path>
-            <path d="M12 10.5l-2.5 7"></path>
-            <path d="M12 10.5l2.5 7"></path>
-          </svg>
-        </div>
-        <div>
-          <h1 class="font-bold text-lg leading-tight tracking-tight">Astin</h1>
-          <p class="text-xs text-slate-500 font-medium">Diabetes System</p>
-        </div>
-        <button type="button" class="lg:hidden text-slate-500" @click="$emit('close')">
-          <i class="ph ph-x text-xl"></i>
-        </button>
-      </div>
+    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-2">
+      <RouterLink to="/" class="flex-1 min-w-0 flex items-center" @click="$emit('close')">
+        <AppLogo variant="brand" size="md" />
+      </RouterLink>
+      <button type="button" class="lg:hidden text-slate-500 shrink-0" @click="$emit('close')">
+        <i class="ph ph-x text-xl"></i>
+      </button>
     </div>
     
     <nav class="flex-1 p-4 overflow-y-auto space-y-6">

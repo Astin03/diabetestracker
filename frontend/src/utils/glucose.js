@@ -15,6 +15,12 @@ export function categoryColor(category) {
   return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
 }
 
+export function categoryPrintClass(category) {
+  if (category === 'hypoglycemia') return 'cell-cat-low';
+  if (category === 'hyperglycemia') return 'cell-cat-high';
+  return 'cell-cat-normal';
+}
+
 export function categoryLabel(category) {
   if (category === 'hypoglycemia') return 'Low';
   if (category === 'hyperglycemia') return 'High';

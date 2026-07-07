@@ -18,22 +18,37 @@ function userPayload(row) {
     browserNotifications: !!row.browser_notifications,
     darkMode: !!row.dark_mode,
     streakDays: row.streak_days,
+    accountType: row.account_type || 'patient',
   };
 }
 
 export async function register(req, res, next) {
   try {
-    const { email, password, fullName, diabetesType } = req.body;
+    const { email, password, fullName, diabetesType, accountType } = req.body;
+    const role = accountType === 'guardian' ? 'guardian' : 'patient';
     const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length) {
       return res.status(409).json({ error: 'Email already registered' });
     }
     const hash = await bcrypt.hash(password, 12);
     const [result] = await pool.query(
-      `INSERT INTO users (email, password_hash, full_name, diabetes_type)
-       VALUES (?, ?, ?, ?)`,
-      [email, hash, fullName, diabetesType || 'type_2']
+      `INSERT INTO users (email, password_hash, full_name, diabetes_type, account_type)
+       VALUES (?, ?, ?, ?, ?)`,
+      [email, hash, fullName, diabetesType || 'type_2', role]
     );
+
+    if (role === 'guardian') {
+      await pool.query(
+        `UPDATE care_access SET caregiver_id = ?
+         WHERE caregiver_id IS NULL AND LOWER(invited_email) = LOWER(?) AND status = 'pending'`,
+        [result.insertId, email]
+      );
+      await pool.query(
+        `UPDATE care_access SET status = 'accepted', accepted_at = NOW()
+         WHERE caregiver_id = ? AND status = 'pending'`,
+        [result.insertId]
+      );
+    }
     const token = jwt.sign({ id: result.insertId, email }, env.jwt.secret, {
       expiresIn: env.jwt.expiresIn,
     });

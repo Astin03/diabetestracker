@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import api from '../services/api';
-import { categoryColor } from '../utils/glucose';
+import { categoryColor, categoryPrintClass } from '../utils/glucose';
 import { format, subDays, parseISO, eachDayOfInterval } from 'date-fns';
+import MealGlucoseTable from '../components/glucose/MealGlucoseTable.vue';
 
 const MEAL_COLUMNS = [
   {
@@ -31,32 +32,22 @@ const MEAL_COLUMNS = [
   },
 ];
 
-function getHeaderClass(theme, isSub = false) {
-  if (theme === 'orange') return isSub ? 'bg-orange-200 dark:bg-orange-900/60 text-orange-900 dark:text-orange-200 border-orange-300 dark:border-orange-700/80' : 'bg-orange-300 dark:bg-orange-800/60 text-orange-900 dark:text-orange-100 border-orange-400/80 dark:border-orange-700';
-  if (theme === 'emerald') return isSub ? 'bg-emerald-200 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700/80' : 'bg-emerald-300 dark:bg-emerald-800/60 text-emerald-900 dark:text-emerald-100 border-emerald-400/80 dark:border-emerald-700';
-  if (theme === 'indigo') return isSub ? 'bg-indigo-200 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200 border-indigo-300 dark:border-indigo-700/80' : 'bg-indigo-300 dark:bg-indigo-800/60 text-indigo-900 dark:text-indigo-100 border-indigo-400/80 dark:border-indigo-700';
-  return '';
-}
-
-function getColClass(theme) {
-  if (theme === 'orange') return 'bg-orange-50/80 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800/60';
-  if (theme === 'emerald') return 'bg-emerald-50/80 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/60';
-  if (theme === 'indigo') return 'bg-indigo-50/80 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800/60';
-  return '';
-}
-
-const days = ref(7);
+const days = ref(14);
 const loading = ref(true);
 const logsByDate = ref({});
 
+const todayDate = computed(() => format(new Date(), 'yyyy-MM-dd'));
+const todayLabel = computed(() => format(new Date(), 'EEEE, MMMM d'));
+
 const dateFrom = computed(() => format(subDays(new Date(), days.value - 1), 'yyyy-MM-dd'));
-const dateTo = computed(() => format(new Date(), 'yyyy-MM-dd'));
 
 const sortedDates = computed(() => {
   const end = new Date();
   const start = subDays(end, days.value - 1);
   return eachDayOfInterval({ start, end }).map((d) => format(d, 'yyyy-MM-dd'));
 });
+
+const historyDates = computed(() => sortedDates.value.filter((d) => d !== todayDate.value));
 
 const printSubtitle = computed(() => {
   const start = format(parseISO(dateFrom.value), 'MMM d, yyyy');
@@ -68,18 +59,6 @@ function cellLog(date, type) {
   return logsByDate.value[date]?.[type] ?? null;
 }
 
-function isLatestRow(idx) {
-  return idx === sortedDates.value.length - 1;
-}
-
-function formatTime(iso) {
-  try {
-    return format(parseISO(iso.replace(' ', 'T')), 'HH:mm');
-  } catch {
-    return '';
-  }
-}
-
 function printTable() {
   window.print();
 }
@@ -88,7 +67,7 @@ async function load() {
   loading.value = true;
   try {
     const { data } = await api.get('/glucose', {
-      params: { from: dateFrom.value, limit: 500 },
+      params: { from: dateFrom.value, limit: Math.min(days.value * 8, 1000) },
     });
     const map = {};
     for (const log of data.logs) {
@@ -127,6 +106,8 @@ onMounted(load);
           <option :value="7">7 days</option>
           <option :value="14">14 days</option>
           <option :value="30">30 days</option>
+          <option :value="60">60 days</option>
+          <option :value="90">90 days</option>
         </select>
         <button type="button" class="btn-secondary text-sm flex items-center justify-center gap-2 flex-1 sm:flex-none" @click="printTable">
           <i class="ph-duotone ph-printer text-lg" />
@@ -141,21 +122,65 @@ onMounted(load);
     </div>
 
     <template v-else>
-      <!-- Print header (only when printing) -->
       <div class="print-only print-header">
-        <h1 class="text-xl font-bold">Astin Diabetes System</h1>
-        <h2 class="text-lg font-semibold mt-1">Meal Glucose Table</h2>
-        <p class="text-sm text-slate-600">{{ printSubtitle }}</p>
-        <p class="text-xs text-slate-500 mt-1">Printed {{ format(new Date(), 'MMM d, yyyy h:mm a') }}</p>
+        <h2 class="text-sm font-bold">Astin Diabetes System</h2>
+        <p class="text-xs mt-0.5">Meal Glucose Table</p>
+        <p class="text-[10px] text-slate-600">{{ printSubtitle }}</p>
+        <p class="text-[9px] text-slate-500 mt-0.5">Printed {{ format(new Date(), 'MMM d, yyyy h:mm a') }}</p>
       </div>
 
-      <!-- Mobile cards (screen only) -->
+      <!-- Today (printable) -->
+      <section class="card overflow-hidden p-0 border-astin-200/60 dark:border-astin-500/30 shadow-md print-table-block">
+        <div class="px-5 py-3 md:px-6 bg-astin-50 dark:bg-astin-900/20 border-b border-astin-100 dark:border-astin-800/50 flex items-center justify-between gap-3 no-print">
+          <div>
+            <h2 class="font-bold text-lg text-astin-800 dark:text-astin-200">Today</h2>
+            <p class="text-sm text-slate-500">{{ todayLabel }}</p>
+          </div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-astin-600 dark:text-astin-400 bg-white/80 dark:bg-slate-900/50 px-2.5 py-1 rounded-full">Live</span>
+        </div>
+
+        <!-- Mobile today -->
+        <div class="md:hidden p-5 space-y-4">
+          <div v-for="g in MEAL_COLUMNS" :key="'today-m-' + g.group" class="grid grid-cols-3 items-center gap-2">
+            <span class="text-sm font-bold text-slate-600 dark:text-slate-400">{{ g.group }}</span>
+            <div v-for="col in g.cols" :key="col.type" class="flex flex-col items-center">
+              <span class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">{{ col.label }}</span>
+              <template v-if="cellLog(todayDate, col.type)">
+                <div
+                  class="inline-flex items-center justify-center w-full px-1 py-1.5 rounded-lg border font-bold text-sm cell-value"
+                  :class="[
+                    categoryColor(cellLog(todayDate, col.type).category),
+                    categoryPrintClass(cellLog(todayDate, col.type).category),
+                  ]"
+                >
+                  {{ cellLog(todayDate, col.type).value }}
+                </div>
+              </template>
+              <span v-else class="text-slate-300 text-sm">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop today -->
+        <p class="print-section-title hidden print:block px-4 pt-2">Today — {{ todayLabel }}</p>
+        <div class="hidden md:block p-4 print:block print:p-0 print:px-2">
+          <MealGlucoseTable
+            :dates="[todayDate]"
+            :logs-by-date="logsByDate"
+            :meal-columns="MEAL_COLUMNS"
+            :highlight-latest="false"
+            compact
+          />
+        </div>
+      </section>
+
+      <!-- Mobile history cards -->
       <div class="md:hidden no-print space-y-4">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400 px-1">Previous days</h2>
         <div
-          v-for="(date, idx) in sortedDates.slice().reverse()"
+          v-for="date in [...historyDates].reverse()"
           :key="'m-' + date"
-          class="card p-5 space-y-4 transition-all"
-          :class="idx === 0 ? 'ring-2 ring-astin-500/30 bg-astin-50/50 dark:bg-astin-900/10 shadow-md' : ''"
+          class="card p-5 space-y-4"
         >
           <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
             <span class="font-bold text-lg">{{ format(parseISO(date), 'MMM d') }}</span>
@@ -168,86 +193,36 @@ onMounted(load);
                 <span class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">{{ col.label }}</span>
                 <template v-if="cellLog(date, col.type)">
                   <div
-                    class="inline-flex flex-col items-center justify-center w-full px-1 py-1 rounded border font-semibold cell-value"
+                    class="inline-flex items-center justify-center w-full px-1 py-1 rounded-lg border font-semibold text-sm cell-value"
                     :class="categoryColor(cellLog(date, col.type).category)"
                   >
-                    <span class="text-sm">{{ cellLog(date, col.type).value }}</span>
+                    {{ cellLog(date, col.type).value }}
                   </div>
                 </template>
-                <span v-else class="text-slate-300">—</span>
+                <span v-else class="text-slate-300 text-sm">—</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Table: desktop + print -->
-      <div id="meal-table-print" class="meal-table-print-area screen-table card overflow-hidden p-0 border-0 shadow-lg">
-        <div class="overflow-x-auto rounded-[1.25rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <table class="meal-table w-full text-sm text-left border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th rowspan="2" class="px-4 py-3 font-bold bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 min-w-[100px] text-slate-800 dark:text-slate-200 shadow-sm">
-                  Date
-                </th>
-                <th
-                  v-for="g in MEAL_COLUMNS"
-                  :key="g.group"
-                  colspan="2"
-                  class="px-3 py-2.5 text-center font-bold"
-                  :class="getHeaderClass(g.theme, false)"
-                >
-                  {{ g.group }}
-                </th>
-              </tr>
-              <tr>
-                <template v-for="g in MEAL_COLUMNS" :key="g.group + '-sub'">
-                  <th
-                    v-for="col in g.cols"
-                    :key="col.type"
-                    class="px-2 py-2 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wider"
-                    :class="getHeaderClass(g.theme, true)"
-                  >
-                    {{ col.label }}
-                  </th>
-                </template>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(date, idx) in sortedDates"
-                :key="date"
-                class="transition-colors"
-                :class="isLatestRow(idx) ? 'bg-astin-50/50 dark:bg-astin-900/20' : 'bg-white dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-800/30'"
-              >
-                <td class="px-4 py-3 font-medium border-slate-200 dark:border-slate-700/80">
-                  <span class="block text-slate-900 dark:text-slate-100">{{ format(parseISO(date), 'MMM d') }}</span>
-                  <span class="text-xs text-slate-500">{{ format(parseISO(date), 'EEE') }}</span>
-                </td>
-                <template v-for="g in MEAL_COLUMNS" :key="date + g.group">
-                  <td
-                    v-for="col in g.cols"
-                    :key="col.type"
-                    class="px-2 py-3 text-center transition-colors"
-                    :class="getColClass(g.theme)"
-                  >
-                    <template v-if="cellLog(date, col.type)">
-                      <div
-                        class="cell-value inline-flex flex-col items-center justify-center min-w-[56px] px-2 py-1.5 rounded-xl border shadow-sm font-bold transition-transform hover:scale-105 cursor-default"
-                        :class="categoryColor(cellLog(date, col.type).category)"
-                      >
-                        <span class="text-base leading-none">{{ cellLog(date, col.type).value }}</span>
-                        <span class="text-[9px] font-semibold opacity-70 mt-1">{{ formatTime(cellLog(date, col.type).recordedAt) }}</span>
-                      </div>
-                    </template>
-                    <span v-else class="text-slate-300 dark:text-slate-600">—</span>
-                  </td>
-                </template>
-              </tr>
-            </tbody>
-          </table>
+      <!-- History table -->
+      <section v-if="historyDates.length" id="meal-table-print" class="meal-table-print-area screen-table card overflow-hidden p-0 border-0 shadow-lg print-table-block">
+        <div class="px-5 py-3 md:px-6 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 no-print">
+          <h2 class="font-bold text-lg">Previous days</h2>
+          <p class="text-sm text-slate-500">{{ historyDates.length }} days</p>
         </div>
-      </div>
+        <p class="print-section-title hidden print:block px-4 pt-2">Previous days ({{ historyDates.length }})</p>
+        <div class="p-4 print:p-0 print:px-2">
+          <MealGlucoseTable
+            :dates="historyDates"
+            :logs-by-date="logsByDate"
+            :meal-columns="MEAL_COLUMNS"
+            :highlight-latest="false"
+            compact
+          />
+        </div>
+      </section>
 
       <div class="print-legend flex flex-wrap gap-4 text-xs text-slate-500">
         <span class="flex items-center gap-1.5"><span class="legend-dot bg-emerald-500" /> Normal</span>
@@ -280,18 +255,8 @@ onMounted(load);
   display: inline-block;
 }
 
-/* Fix for table corner clipping with borders */
-.meal-table th,
-.meal-table td {
-  border-bottom-width: 1px;
-  border-right-width: 1px;
-}
-.meal-table tr:last-child td {
-  border-bottom-width: 0;
-}
-.meal-table th:last-child,
-.meal-table td:last-child {
-  border-right-width: 0;
+.print-section-title {
+  display: none;
 }
 
 @media print {
@@ -303,12 +268,36 @@ onMounted(load);
     display: none !important;
   }
 
-  .screen-table {
+  .meal-table-page {
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0 !important;
+  }
+
+  .meal-table-page * {
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .screen-table,
+  .print-table-block,
+  .hidden.md\:block {
     display: block !important;
+  }
+
+  .md\:hidden {
+    display: none !important;
+  }
+
+  .screen-table,
+  .print-table-block {
     overflow: visible !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin-bottom: 10px !important;
   }
 
   .meal-table-print-area {
@@ -317,34 +306,70 @@ onMounted(load);
 
   .meal-table {
     width: 100% !important;
-    font-size: 11px !important;
+    font-size: 8px !important;
     border-collapse: collapse !important;
-    border-spacing: 0 !important;
   }
 
   .meal-table th,
   .meal-table td {
     border: 1px solid #cbd5e1 !important;
-    padding: 6px 8px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    padding: 3px 4px !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .meal-table th {
+    background: #f1f5f9 !important;
+    font-size: 7px !important;
+    font-weight: 700 !important;
   }
 
   .cell-value {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    background: #fff !important;
+    color: #000 !important;
     box-shadow: none !important;
-    border: none !important;
+    font-size: 8px !important;
+    padding: 2px 4px !important;
+    min-width: 0 !important;
+    border-radius: 2px !important;
+  }
+
+  .cell-value.cell-cat-low {
+    border: 1.5px solid #ef4444 !important;
+  }
+
+  .cell-value.cell-cat-high {
+    border: 1.5px solid #f97316 !important;
+  }
+
+  .cell-value.cell-cat-normal {
+    border: 1.5px solid #22c55e !important;
   }
 
   .print-header {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     text-align: center;
+    color: #000 !important;
+  }
+
+  .print-header h2,
+  .print-header p {
+    color: #000 !important;
+  }
+
+  .print-section-title {
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    margin: 8px 0 4px !important;
+    color: #000 !important;
   }
 
   .print-legend {
-    margin-top: 12px;
+    margin-top: 8px;
     justify-content: center;
+    font-size: 8px !important;
+    color: #475569 !important;
   }
 }
 </style>

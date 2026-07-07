@@ -3,10 +3,12 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../services/api';
 import { INSULIN_TYPES, MEALS, insulinMeta, mealLabel } from '../utils/insulin';
 import { useAlert } from '../composables/useAlert';
+import { useAuthStore } from '../stores/auth';
 import { format, parseISO } from 'date-fns';
 import PaginationBar from '../components/common/PaginationBar.vue';
 
 const alert = useAlert();
+const auth = useAuthStore();
 const logs = ref([]);
 const todayTotals = ref(null);
 const todayByMeal = ref(null);
@@ -177,7 +179,7 @@ onMounted(load);
       </div>
     </div>
 
-    <form class="card p-6 space-y-4" @submit.prevent="submit">
+    <form v-if="auth.canWrite" class="card p-6 space-y-4" @submit.prevent="submit">
       <h2 class="font-semibold">Log dose</h2>
 
       <div>
@@ -291,6 +293,7 @@ onMounted(load);
             {{ formatLogDateTime(log.recordedAt) }}
           </div>
           <button
+            v-if="auth.canWrite"
             type="button"
             class="shrink-0 p-2 rounded-lg text-red-500 hover:bg-red-500/10 disabled:opacity-50"
             :disabled="deletingId === log.id"

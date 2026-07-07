@@ -2,6 +2,7 @@ import pool from '../config/db.js';
 import { categorizeGlucose } from '../utils/glucose.js';
 import { estimateA1C, glucoseStats, timeInRange } from '../utils/a1c.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
+import { patientId } from '../utils/patientContext.js';
 
 function mapLog(row) {
   return {
@@ -40,7 +41,7 @@ async function updateStreak(userId, logDate) {
 export async function create(req, res, next) {
   try {
     const { value, readingType, recordedAt, notes, mealNotes, tags } = req.body;
-    const [users] = await pool.query('SELECT target_low, target_high FROM users WHERE id = ?', [req.user.id]);
+    const [users] = await pool.query('SELECT target_low, target_high FROM users WHERE id = ?', [patientId(req)]);
     const { target_low, target_high } = users[0];
     const category = categorizeGlucose(value, parseFloat(target_low), parseFloat(target_high));
 
@@ -49,12 +50,12 @@ export async function create(req, res, next) {
        (user_id, value, reading_type, recorded_at, notes, meal_notes, tags, category)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        req.user.id, value, readingType || 'random', recordedAt,
+        patientId(req), value, readingType || 'random', recordedAt,
         notes || null, mealNotes || null,
         JSON.stringify(tags || []), category,
       ]
     );
-    await updateStreak(req.user.id, recordedAt);
+    await updateStreak(patientId(req), recordedAt);
 
     const [rows] = await pool.query('SELECT * FROM glucose_logs WHERE id = ?', [result.insertId]);
     res.status(201).json({ log: mapLog(rows[0]) });
@@ -81,8 +82,8 @@ function buildGlucoseWhere(userId, query) {
 
 export async function list(req, res, next) {
   try {
-    const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 10 });
-    const { where, params } = buildGlucoseWhere(req.user.id, req.query);
+    const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 10, maxLimit: 1000 });
+    const { where, params } = buildGlucoseWhere(patientId(req), req.query);
 
     const [countRows] = await pool.query(
       `SELECT COUNT(*) as total FROM glucose_logs ${where}`,
@@ -108,7 +109,7 @@ export async function getOne(req, res, next) {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM glucose_logs WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
+      [req.params.id, patientId(req)]
     );
     if (!rows.length) return res.status(404).json({ error: 'Log not found' });
     res.json({ log: mapLog(rows[0]) });
@@ -120,13 +121,13 @@ export async function getOne(req, res, next) {
 export async function update(req, res, next) {
   try {
     const { value, readingType, recordedAt, notes, mealNotes, tags } = req.body;
-    const [users] = await pool.query('SELECT target_low, target_high FROM users WHERE id = ?', [req.user.id]);
+    const [users] = await pool.query('SELECT target_low, target_high FROM users WHERE id = ?', [patientId(req)]);
     const category = categorizeGlucose(value, parseFloat(users[0].target_low), parseFloat(users[0].target_high));
 
     const [result] = await pool.query(
       `UPDATE glucose_logs SET value=?, reading_type=?, recorded_at=?, notes=?, meal_notes=?, tags=?, category=?
        WHERE id=? AND user_id=?`,
-      [value, readingType, recordedAt, notes, mealNotes, JSON.stringify(tags || []), category, req.params.id, req.user.id]
+      [value, readingType, recordedAt, notes, mealNotes, JSON.stringify(tags || []), category, req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Log not found' });
     const [rows] = await pool.query('SELECT * FROM glucose_logs WHERE id = ?', [req.params.id]);
@@ -140,7 +141,7 @@ export async function remove(req, res, next) {
   try {
     const [result] = await pool.query(
       'DELETE FROM glucose_logs WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
+      [req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Log not found' });
     res.json({ success: true });
@@ -152,7 +153,7 @@ export async function remove(req, res, next) {
 export async function summary(req, res, next) {
   try {
     const { from, to, period = 'day' } = req.query;
-    const [users] = await pool.query('SELECT target_low, target_high FROM users WHERE id = ?', [req.user.id]);
+    const [users] = await pool.query('SELECT target_low, target_high FROM users WHERE id = ?', [patientId(req)]);
     const targetLow = parseFloat(users[0].target_low);
     const targetHigh = parseFloat(users[0].target_high);
 
@@ -180,7 +181,7 @@ export async function summary(req, res, next) {
     const dateEnd = (dateTo || dateFrom) + ' 23:59:59';
     const [rows] = await pool.query(
       `SELECT * FROM glucose_logs WHERE user_id = ? AND recorded_at >= ? AND recorded_at <= ? ORDER BY recorded_at ASC`,
-      [req.user.id, dateFrom, dateEnd]
+      [patientId(req), dateFrom, dateEnd]
     );
     const logs = rows.map(mapLog);
     const stats = glucoseStats(logs);

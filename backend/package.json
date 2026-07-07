@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "migrate": "node src/scripts/migrate.js"
+    "migrate": "node src/scripts/migrate.js",
+    "seed": "node src/scripts/seed.js",
+    "seed:glucose": "node src/scripts/seedGlucoseTable.js"
   },
   "keywords": ["diabetes", "glucose", "health"],
   "author": "Astin",

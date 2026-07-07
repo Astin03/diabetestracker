@@ -9,13 +9,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.png', 'logo.png'],
       manifest: {
         name: 'Astin Diabetes System',
         short_name: 'Astin',
         description: 'Personal diabetes tracking & glucose monitoring',
-        theme_color: '#0f766e',
-        background_color: '#0f172a',
+        theme_color: '#1a1625',
+        background_color: '#1a1625',
         display: 'standalone',
         icons: [
           { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
@@ -40,7 +40,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:5000', changeOrigin: true },
+      '/api': { target: 'http://localhost:5050', changeOrigin: true },
     },
   },
 });

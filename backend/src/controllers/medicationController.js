@@ -6,6 +6,7 @@ import {
   purgeInactiveMedicationChecklists,
 } from '../services/checklistService.js';
 import { parsePagination, paginationMeta } from '../utils/pagination.js';
+import { patientId } from '../utils/patientContext.js';
 
 function mapMed(row) {
   return {
@@ -37,7 +38,7 @@ export async function create(req, res, next) {
        (user_id, name, dosage, notes, start_date, end_date, reminder_time, frequency_type, frequency_config)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        req.user.id, name, dosage || null, notes || null,
+        patientId(req), name, dosage || null, notes || null,
         startDate, endDate || null, reminderTime,
         frequencyType || 'daily',
         JSON.stringify(frequencyConfig || {}),
@@ -45,7 +46,7 @@ export async function create(req, res, next) {
     );
 
     const end = endDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    await generateChecklistsForUser(req.user.id, startDate, end);
+    await generateChecklistsForUser(patientId(req), startDate, end);
 
     const [rows] = await pool.query('SELECT * FROM medications WHERE id = ?', [result.insertId]);
     res.status(201).json({ medication: mapMed(rows[0]) });
@@ -60,7 +61,7 @@ export async function list(req, res, next) {
     const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 12 });
 
     let where = 'WHERE user_id = ?';
-    const params = [req.user.id];
+    const params = [patientId(req)];
     if (activeOnly) where += ' AND is_active = 1';
 
     const [countRows] = await pool.query(
@@ -103,7 +104,7 @@ export async function update(req, res, next) {
         frequencyType,
         frequencyConfig ? JSON.stringify(frequencyConfig) : null,
         isActive != null ? (isActive ? 1 : 0) : null,
-        req.params.id, req.user.id,
+        req.params.id, patientId(req),
       ]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Medication not found' });
@@ -118,12 +119,12 @@ export async function remove(req, res, next) {
   try {
     const [result] = await pool.query(
       'UPDATE medications SET is_active = 0 WHERE id = ? AND user_id = ? AND is_active = 1',
-      [req.params.id, req.user.id]
+      [req.params.id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Medication not found' });
     await pool.query(
       'DELETE FROM medication_checklists WHERE medication_id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
+      [req.params.id, patientId(req)]
     );
     res.json({ success: true });
   } catch (e) {
@@ -160,8 +161,8 @@ async function fetchTodayChecklistRows(userId) {
 
 export async function todayChecklist(req, res, next) {
   try {
-    await ensureChecklistsForRange(req.user.id);
-    const rows = await fetchTodayChecklistRows(req.user.id);
+    await ensureChecklistsForRange(patientId(req));
+    const rows = await fetchTodayChecklistRows(patientId(req));
     res.json({ checklist: rows.map(mapChecklistRow) });
   } catch (e) {
     next(e);
@@ -170,8 +171,8 @@ export async function todayChecklist(req, res, next) {
 
 export async function resetTodayChecklist(req, res, next) {
   try {
-    await resetTodayChecklists(req.user.id);
-    const rows = await fetchTodayChecklistRows(req.user.id);
+    await resetTodayChecklists(patientId(req));
+    const rows = await fetchTodayChecklistRows(patientId(req));
     res.json({
       checklist: rows.map(mapChecklistRow),
       message: "Today's checklist reset",
@@ -188,7 +189,7 @@ export async function markTaken(req, res, next) {
     const [result] = await pool.query(
       `UPDATE medication_checklists SET status = 'taken', taken_at = ?
        WHERE id = ? AND user_id = ?`,
-      [takenAt, id, req.user.id]
+      [takenAt, id, patientId(req)]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Checklist item not found' });
     res.json({ success: true, status: 'taken', takenAt });
@@ -206,7 +207,7 @@ export async function checklistByDate(req, res, next) {
        JOIN medications m ON m.id = c.medication_id
        WHERE c.user_id = ? AND c.scheduled_date = ?
        ORDER BY c.scheduled_time ASC`,
-      [req.user.id, date]
+      [patientId(req), date]
     );
     res.json({
       checklist: rows.map((r) => ({
@@ -233,7 +234,7 @@ export async function calendarMeds(req, res, next) {
        FROM medication_checklists
        WHERE user_id = ? AND scheduled_date >= ? AND scheduled_date <= ?
        GROUP BY scheduled_date, status`,
-      [req.user.id, from, to]
+      [patientId(req), from, to]
     );
     res.json({ calendar: rows });
   } catch (e) {
@@ -243,14 +244,14 @@ export async function calendarMeds(req, res, next) {
 
 export async function missed(req, res, next) {
   try {
-    await purgeInactiveMedicationChecklists(req.user.id);
+    await purgeInactiveMedicationChecklists(patientId(req));
     const [rows] = await pool.query(
       `SELECT c.*, m.name, m.dosage
        FROM medication_checklists c
        JOIN medications m ON m.id = c.medication_id AND m.is_active = 1
        WHERE c.user_id = ? AND c.status = 'missed'
        ORDER BY c.scheduled_date DESC LIMIT 50`,
-      [req.user.id]
+      [patientId(req)]
     );
     res.json({ missed: rows });
   } catch (e) {

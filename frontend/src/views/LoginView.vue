@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useAlert } from '../composables/useAlert';
+import AppLogo from '../components/common/AppLogo.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -12,7 +13,8 @@ const form = ref({ email: '', password: '' });
 async function submit() {
   try {
     await auth.login(form.value);
-    alert.success('Welcome back!', 'You are now signed in.', () => router.push('/'));
+    const dest = auth.needsDataChoice ? '/choose-data' : '/';
+    alert.success('Welcome back!', 'You are now signed in.', () => router.push(dest));
   } catch (e) {
     alert.error(e.response?.data?.error || 'Login failed');
   }
@@ -23,8 +25,7 @@ async function submit() {
   <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-astin-900 to-slate-900">
     <div class="w-full max-w-md card p-8">
       <div class="text-center mb-8">
-        <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-astin-400 to-astin-700 flex items-center justify-center text-white text-2xl font-bold mb-4">A</div>
-        <h1 class="text-2xl font-bold">Astin Diabetes</h1>
+        <AppLogo size="xl" centered class="mb-4" />
         <p class="text-slate-500 text-sm mt-1">Sign in to your account</p>
       </div>
       <form class="space-y-4" @submit.prevent="submit">
