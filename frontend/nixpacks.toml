@@ -11,4 +11,4 @@ cmds = ["npm ci"]
 cmds = ["VITE_API_URL=https://dt-server.wonderprotect.net/api npm run build"]
 
 [start]
-cmd = "npx --yes serve -s dist -l tcp://0.0.0.0:${PORT:-3000}"
+cmd = "sh scripts/start.sh"

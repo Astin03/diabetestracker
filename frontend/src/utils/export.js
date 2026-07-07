@@ -3,10 +3,11 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { readingLabel } from './glucose';
+import { getApiUrl } from './appConfig';
 
 export async function exportCsv() {
   const token = localStorage.getItem('astin_token');
-  const base = import.meta.env.VITE_API_URL || '/api';
+  const base = getApiUrl();
   const res = await fetch(`${base}/export/csv`, {
     headers: { Authorization: `Bearer ${token}` },
   });
